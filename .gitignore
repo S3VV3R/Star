@@ -1,0 +1,13 @@
+node_modules/
+*.tgz
+*.zip
+.DS_Store
+.env*
+.openai/.local/
+
+# Local development files
+.env*
+!.env.example
+.vscode/
+.DS_Store
+Thumbs.db

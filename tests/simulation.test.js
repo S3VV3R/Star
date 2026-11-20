@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {initialPhysics,stepEnergy,canIgnite,CAPACITY_MWH} from '../src/systems/EnergySystem.js';
+import {createOrbits,orbitPosition} from '../src/systems/OrbitalSystem.js';
+const controls={active:100,alignment:0,distribution:50,cooling:100,allocation:100,protection:false,initialized:true,shutdown:false};
+test('perpendicular collectors produce no power; aligned collectors do',()=>{const a=stepEnergy(initialPhysics(),controls,.1),b=stepEnergy(initialPhysics(),{...controls,alignment:90},.1);assert.ok(a.power>2100);assert.ok(b.power<1e-9);});
+test('storage integrates MW into MWh using seconds and remains bounded',()=>{const p=stepEnergy(initialPhysics(),controls,.1);const expected=160+(p.power*.91-600)*.1/3600;assert.ok(Math.abs(p.storage-expected)<1e-9);const full=stepEnergy({...initialPhysics(),storage:800},controls,.1);assert.equal(full.storage,CAPACITY_MWH);});
+test('shutdown isolates collectors and preserves stored energy',()=>{const initial={...initialPhysics(),temperature:90};const s=stepEnergy(initial,{...controls,shutdown:true},.1);assert.equal(s.power,0);assert.equal(s.delivered,0);assert.equal(s.storage,initial.storage);assert.ok(s.temperature<90);});
+test('cooling and protective feathering reduce storm thermal load',()=>{const initial={...initialPhysics(),stormRemaining:17,stormElapsed:18};const hot=stepEnergy(initial,{...controls,cooling:0},.1);const safe=stepEnergy(initial,{...controls,protection:true},.1);assert.ok(hot.temperature>safe.temperature);assert.ok(hot.power>safe.power);});
+test('35-second protected storm can be completed and unlock ignition',()=>{let s={...initialPhysics(),stormRemaining:35};for(let i=0;i<351;i++)s=stepEnergy(s,{...controls,protection:true},.1);assert.ok(s.stormSurvived);assert.ok(s.temperature<70);assert.ok(canIgnite(s,controls,[0,1,2,3]));assert.equal(canIgnite(s,controls,[0,1]),false);});
+test('unprotected high exposure produces overheat',()=>{let s={...initialPhysics(),stormRemaining:35};for(let i=0;i<350;i++)s=stepEnergy(s,{...controls,cooling:0},.1);assert.ok(s.temperature>105);assert.equal(s.stormSurvived,false);});
+test('pause leaves energy and time unchanged',()=>{const p=initialPhysics();assert.deepEqual(stepEnergy(p,controls,0),p);});
+test('orbital simulation is deterministic, periodic and bounded',()=>{const a=createOrbits(50),b=createOrbits(50);assert.deepEqual(a,b);for(const o of a){const p=orbitPosition(o,0),q=orbitPosition(o,o.period);p.forEach((v,i)=>assert.ok(Math.abs(v-q[i])<1e-8));const r=Math.hypot(...p);assert.ok(r>=o.a*(1-o.e)-1e-6&&r<=o.a*(1+o.e)+1e-6);}});

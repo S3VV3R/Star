@@ -1,0 +1,19 @@
+export const noise=`
+float hash(vec3 p){p=fract(p*.3183099+vec3(.1,.2,.3));p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float noise(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+float fbm(vec3 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.03+vec3(13.1,7.8,4.3);a*=.5;}return v;}
+`;
+export const stellarVertex=`varying vec3 vPosition;varying vec3 vNormal;varying vec3 vView;void main(){vPosition=position;vec4 mv=modelViewMatrix*vec4(position,1.);vNormal=normalize(normalMatrix*normal);vView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`;
+export const stellarFragment=`uniform float uTime;uniform float uActivity;uniform float uDetail;varying vec3 vPosition;varying vec3 vNormal;varying vec3 vView;${noise}
+void main(){vec3 p=normalize(vPosition);float t=uTime*.035;vec3 warp=vec3(fbm(p*5.+t),fbm(p*5.+11.-t*.6),fbm(p*5.-5.+t*.5));float coarse=fbm(p*9.+warp*2.6+vec3(0,t,0));float gran=noise(p*(uDetail>0.5?135.:72.)+warp*8.+vec3(t*2.,0,0));float grain=pow(gran,2.1);float filaments=abs(sin(fbm(p*24.+warp*3.+t*.2)*19.))*0.18;float spots=smoothstep(.6,.75,fbm(p*8.+warp+vec3(0,t*.1,0)))*.75;float heat=clamp(coarse*.65+grain*.55+filaments-spots,0.,1.);vec3 col=mix(vec3(.42,.018,.001),vec3(2.7,.48,.035),smoothstep(.13,.65,heat));col=mix(col,vec3(3.2,1.7,.55),smoothstep(.59,.88,heat));float limb=pow(max(dot(normalize(vNormal),normalize(vView)),0.),.4);col*=mix(.36,1.,limb);col*=1.+(uActivity-1.)*.25;gl_FragColor=vec4(col,1.);}`;
+export const coronaFragment=`uniform float uTime;uniform float uActivity;varying vec3 vPosition;varying vec3 vNormal;varying vec3 vView;${noise}
+void main(){float f=1.-abs(dot(normalize(vNormal),normalize(vView)));float n=fbm(normalize(vPosition)*7.+uTime*.035);float a=pow(f,3.2)*(.12+n*.3)*(1.+(uActivity-1.)*.6);gl_FragColor=vec4(vec3(1.4,.28,.025),a);}`;
+// LOW preserves an animated volumetric surface with three noise samples instead
+// of the nested domain-warped fractal used by the higher quality presets.
+export const stellarLowFragment=`uniform float uTime;uniform float uActivity;varying vec3 vPosition;varying vec3 vNormal;varying vec3 vView;${noise}
+void main(){vec3 p=normalize(vPosition);float t=uTime*.035;float coarse=noise(p*9.+vec3(t,0.,-t*.3));float gran=noise(p*72.+vec3(0.,t,0.)+coarse*2.);float spots=smoothstep(.65,.85,noise(p*5.+vec3(0.,t*.2,0.)))*.45;float heat=clamp(coarse*.45+gran*.65-spots,0.,1.);vec3 col=mix(vec3(.42,.018,.001),vec3(2.7,.48,.035),smoothstep(.13,.65,heat));col=mix(col,vec3(3.2,1.7,.55),smoothstep(.64,.9,heat));float limb=pow(max(dot(normalize(vNormal),normalize(vView)),0.),.4);col*=mix(.36,1.,limb)*(1.+(uActivity-1.)*.25);gl_FragColor=vec4(col,1.);}`;
+export const coronaLowFragment=`uniform float uTime;uniform float uActivity;varying vec3 vPosition;varying vec3 vNormal;varying vec3 vView;
+void main(){float f=1.-abs(dot(normalize(vNormal),normalize(vView)));float n=.5+.5*sin(vPosition.x*1.6+sin(vPosition.y*2.+uTime*.07));gl_FragColor=vec4(1.4,.28,.025,pow(f,3.2)*(.14+n*.1)*(1.+(uActivity-1.)*.6));}`;
+export const plasmaFragment=`uniform float uTime;uniform float uPower;varying vec2 vUv;void main(){float flow=.4+.6*pow(sin(vUv.x*48.-uTime*(2.+uPower*6.))*.5+.5,4.);float edge=pow(sin(vUv.y*3.14159),.65);gl_FragColor=vec4(vec3(.1,1.2,1.8)*(flow+.15)*uPower,edge*.8);}`;
+export const uvVertex=`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
+export const hologramFragment=`uniform float uTime;varying vec2 vUv;void main(){float lines=.5+.5*sin(vUv.y*130.-uTime*2.);float grid=step(.94,fract(vUv.x*12.))+step(.96,fract(vUv.y*8.));float ring=1.-smoothstep(.006,.013,abs(length(vUv-.5)-.3));gl_FragColor=vec4(.1,.8,1.,.06+lines*.03+grid*.1+ring*.6);}`;

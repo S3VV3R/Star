@@ -1,0 +1,3 @@
+export function randomSeed(seed=31){let s=seed>>>0;return()=>{s=(1664525*s+1013904223)>>>0;return s/4294967296;};}
+export function createOrbits(count){const random=randomSeed(141);return Array.from({length:count},(_,i)=>({a:25+random()*34,e:0.02+random()*0.12,inclination:(i%4)*0.66-0.88,phase:random()*Math.PI*2,period:Math.pow((25+(i%71)*0.47)/25,1.5)*240,node:(i%4)*0.77,sector:i%4}));}
+export function orbitPosition(o,time){const m=o.phase+time*Math.PI*2/o.period;let E=m;for(let i=0;i<4;i++)E-=(E-o.e*Math.sin(E)-m)/(1-o.e*Math.cos(E));const x=o.a*(Math.cos(E)-o.e),z=o.a*Math.sqrt(1-o.e*o.e)*Math.sin(E);const y=z*Math.sin(o.inclination),zz=z*Math.cos(o.inclination);return [x*Math.cos(o.node)-zz*Math.sin(o.node),y,x*Math.sin(o.node)+zz*Math.cos(o.node)];}
